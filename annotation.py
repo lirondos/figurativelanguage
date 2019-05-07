@@ -1,7 +1,7 @@
 #from lxml import etree
 import xml.etree.ElementTree as ET
+import pandas as pd
 import os
-
 
 class Annotation():
 
@@ -16,11 +16,10 @@ class Annotation():
         root = etree.fromstring(string)
         for log in root.xpath("//TEXT"):
             print(log.text)
-
     """
     def parse_with_stdlib(self, folder):
         #with open("full annotation/Molly1.txt.xml") as f:
-        #    string = f.read()
+            #string = f.read()
         for rootdir, dirs, files in os.walk(folder):
                 for filename in files:
                     root = ET.parse(folder+"/"+filename).getroot()
@@ -37,9 +36,14 @@ class Annotation():
                     for tag in tags:
                         tweet_id = tag.attrib['text']
                         label = tag.tag
-                        tweet = tweets_dict.get(tweet_id)
-                        self.corpus[tweet_id] = (tweet, label)
-                        #print(tag.attrib)
+                        if label == 'Figurative':
+                            l = tag.attrib['type']
+                            tweet = tweets_dict.get(tweet_id)
+                            self.corpus[tweet_id] = (tweet, l)
+                        else:
+                            tweet = tweets_dict.get(tweet_id)
+                            self.corpus[tweet_id] = (tweet, label)
+                        
 
 
     def split(self):
@@ -47,9 +51,9 @@ class Annotation():
         self.training_set = dict(list(self.corpus.items())[:split_idx])
         self.test_set = dict(list(self.corpus.items())[split_idx:])
 
-    def to_csv(self):
-        with open("output.csv", 'w') as f:
-            f.write(",id,type,tweet,label\n")
+    def my_to_csv(self):
+        with open("output.csv", 'w', encoding= 'utf-8') as f:
+            f.write("id,type,tweet,label\n")
             for id, element in self.training_set.items():
                 tweet = element[0].replace("\"","\"\"")
                 label = element[1]
@@ -58,13 +62,15 @@ class Annotation():
                 tweet = element[0].replace("\"","\"\"")
                 label = element[1]
                 f.write(id + ",test," + "\"" + tweet + "\"" + "," + label + "\n")
-
-
-
+        f = pd.read_csv("output.csv", header=None)
+        d = f.sample(frac = 1)
+        d.to_csv('output_final.csv')
+        
+       
 if __name__ == '__main__':
     #parse_with_lxml(string)
-    annotation = Annotation("full annotation")
-    annotation.to_csv()
+    annotation = Annotation("gold")
+    annotation.my_to_csv()
+   
+    
     #print(annotation.corpus)
-
-

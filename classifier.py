@@ -15,22 +15,11 @@ import annotation
 
 STOPWORDS = set(stopwords.words('english'))
 
-
-# STOPWORDS.add('is')
-
-
-# Preprocess the text input with a stemmer and tokenizer before extracting features. An alternative is to use a lemmatizer, but the downside is that it is more expensive.
-
-# In[204]:
-
-
 def clean_text(text):
     text = re.sub('<[^>]+>', '', text)  # erase HTML tags
     text = re.sub(r'[^A-Za-z]+', ' ', text)
-    return text
+    return text.lower()
 
-
-# In[205]:
 
 
 def stem_tokens(stemmer, words):
@@ -74,9 +63,6 @@ def trigrams(words):
     # return word_tokenize(text)
 
 
-# In[208]:
-
-
 def extract_words(path_to_file, stemmer):
     with open(path_to_file, 'r') as file:
         list_words = file.read().splitlines()
@@ -85,14 +71,8 @@ def extract_words(path_to_file, stemmer):
     return list_words_stemmed
 
 
-# Define a function tha reads in a csv file and returns a feature vocabulary. Notice the feature vocabulary should only be extracted from the training set. Extracting the vocabulary also from the test set will artificially boost the test accuracy, which can't be replicated in realistic scenarios
-
-# In[209]:
-
-
 def extract_feat_vocab(file):
     data_frame = pd.read_csv(file, encoding='latin1')
-    print(list(data_frame.columns.values))
     feat_vocab = dict()
     for index, row in data_frame[data_frame['type'] == 'train'].iterrows():
         text = clean_text(row['tweet'])
@@ -100,11 +80,6 @@ def extract_feat_vocab(file):
         for token in tokens:
             feat_vocab[token] = feat_vocab.get(token, 0) + 1
     return feat_vocab
-
-
-# After extracting the feature vocabulary, it is often advisable to perform feature section. The feature selection performed here is fairly simple, which essentially involves removing the most frequent words (because they are not discriminative) and the least frequent words (because their weights can be reliably estimated). There are more sophisticated alternatives, e.g., using a stop word list, or a sentiment dictionary to filter out unhelpful features.
-
-# In[210]:
 
 
 def select_features(feat_vocab, most_freq=100, least_freq=5000):
@@ -119,12 +94,6 @@ def select_features(feat_vocab, most_freq=100, least_freq=5000):
     return set(feat_dict.keys())
     """
 
-
-# Given the feature vocabulary, we can now turn the training and test instances into feature representations. We use a DataFrame object from Pandas to store the features. Each row in the feature DataFrame is the feature representation for a data instance. In addition to its feature representation, the _type_ ('train' or 'test') _label_ information is also stored.
-
-# In[211]:
-
-
 def featurize(csv_file, feat_vocab):
     cols = ['_type_', '_label_']
     cols.extend(list(feat_vocab))
@@ -132,7 +101,6 @@ def featurize(csv_file, feat_vocab):
     data_frame = pd.read_csv(csv_file, encoding='latin1', engine='python')
     #     dtype={'FULL': 'str', 'COUNT': 'int'}
     row_count = data_frame.shape[0]
-    print(row_count)
     feat_data_frame = pd.DataFrame(index=np.arange(row_count), columns=cols)
     feat_data_frame.fillna(0, inplace=True)  # inplace: mutable
     for index, row in data_frame.iterrows():
@@ -141,14 +109,9 @@ def featurize(csv_file, feat_vocab):
         text = clean_text(row['tweet'])
         tokens = word_tokenize(text)
         for token in tokens:
-            if token in feat_vocab:
+            if token.lower() in feat_vocab:
                 feat_data_frame.loc[index, token] += 1
     return feat_data_frame
-
-
-# In order to be used in classifiers, the feature representations in the DataFrame need to be transformed into a matrix, and the labels need to be transformed into a vector. The shape of the feature matrix is (# of instances, # of features).
-
-# In[212]:
 
 
 def vectorize(feature_csv, split="train"):
@@ -163,29 +126,20 @@ def vectorize(feature_csv, split="train"):
             if not (col == "_type_" or col == "_label_" or col == 'index'):
                 datum[col] = row[col]
         data.append(datum)
-    print(data)
+    #print(data)
     vec = DictVectorizer()
     data = vec.fit_transform(data).toarray()
-    print(data.shape)
+    #print(data.shape)
     labels = df._label_.as_matrix()
-    print(labels.shape)
+    #print(labels.shape)
     return data, labels
 
-
-# Training a model in Scikit Learn is simple, involving just calling the 'fit' method
-
-# In[213]:
 
 
 def train_model(X_train, y_train, model):
     model.fit(X_train, y_train)
     print("Shape of model coefficients and intercepts: {} {}".format(model.coef_.shape, model.intercept_.shape))
     return model
-
-
-# Test the model and report the results
-
-# In[214]:
 
 
 def test_model(X_test, y_test, model):
@@ -195,24 +149,14 @@ def test_model(X_test, y_test, model):
     return accuracy, report
 
 
-# The 'classify' function group together feature vectorization, model training and model testing.
-
-# In[215]:
-
-
 def classify(feat_csv):
     X_train, y_train = vectorize(feat_csv)
     X_test, y_test = vectorize(feat_csv, split='test')
     model = LogisticRegression(multi_class='multinomial', penalty='l2', solver='lbfgs', max_iter=20,
-                               verbose=1)  # original 200
+                               verbose=1)
     model = train_model(X_train, y_train, model)
     accuracy, report = test_model(X_test, y_test, model)
     print(report)
-
-
-# This cell below is not useful to you. It was used to reduce the data set to a manageable size.
-
-# In[216]:
 
 
 def select_rows(from_csv, to_csvfile):
@@ -230,16 +174,10 @@ def select_rows(from_csv, to_csvfile):
 
 
 if __name__ == '__main__':
-    # csv_path = os.path.join(os.path.curdir, "spring-2019/imdb_from_gaggle_labeled.csv")
-    # print(csv_path)
-    file = "output.csv"
+    #replace filename to run on different data set
+    file = "sarcasm vs everything.csv"
     feat_vocab = extract_feat_vocab(file)
-    print(len(feat_vocab))
-    # print(feat_vocab)
-    #selected_feat_vocab = select_features(feat_vocab, 1, 500000)  # 100 en el original
-    selected_feat_vocab = select_features(feat_vocab, 100, 10000)
-    #print(selected_feat_vocab)
-    print(len(selected_feat_vocab))
+    selected_feat_vocab = select_features(feat_vocab, 1, 50)
     feat_data_frame = featurize(file, selected_feat_vocab)
     featfile = os.path.join(os.path.curdir, "features.csv")
     feat_data_frame.to_csv(featfile, encoding='latin1', index=False)

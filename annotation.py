@@ -62,10 +62,6 @@ class Annotation():
                 tweet = element[0].replace("\"","\"\"")
                 label = element[1]
                 f.write(id + ",test," + "\"" + tweet + "\"" + "," + label + "\n")
-        f = pd.read_csv("output.csv", header=None)
-        d = f.sample(frac = 1)
-        d.to_csv('output_final.csv')
-        
        
 if __name__ == '__main__':
     #parse_with_lxml(string)
